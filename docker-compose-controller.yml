@@ -1,0 +1,95 @@
+services:
+  atomix-1:
+    image: atomix/atomix:3.1.5
+    container_name: atomix-1
+    networks: 
+      - onos-cluster
+    volumes:
+      - ./atomix-conf/atomix-1.conf:/opt/atomix/conf/atomix.conf
+    restart: always
+
+  atomix-2:
+    image: atomix/atomix:3.1.5
+    container_name: atomix-2
+    networks:
+      - onos-cluster
+    volumes:
+      - ./atomix-conf/atomix-2.conf:/opt/atomix/conf/atomix.conf
+    restart: always
+
+  atomix-3:
+    image: atomix/atomix:3.1.5
+    container_name: atomix-3
+    networks:
+      - onos-cluster
+    volumes:
+      - ./atomix-conf/atomix-3.conf:/opt/atomix/conf/atomix.conf
+    restart: always
+
+  onos-1:
+    image: onosproject/onos
+    container_name: onos-1
+    networks:
+      - onos-cluster
+    volumes:
+      - ./cluster-conf/cluster-1.json:/root/onos/config/cluster.json
+    ports:
+      - "6653:6653"
+    restart: always
+
+  onos-2:
+    image: onosproject/onos
+    container_name: onos-2
+    networks:
+      - onos-cluster
+    volumes:
+      - ./cluster-conf/cluster-2.json:/root/onos/config/cluster.json
+    ports:
+      - "6654:6653"
+    restart: always
+
+  onos-3:
+    image: onosproject/onos
+    container_name: onos-3
+    networks:
+      - onos-cluster
+    volumes:
+      - ./cluster-conf/cluster-3.json:/root/onos/config/cluster.json
+    ports:
+      - "6655:6653"
+    restart: always
+
+  onos-mgt:
+    image: mnhost
+    container_name: onos-mgt
+    networks:
+      - onos-cluster
+    depends_on:
+      - onos-1
+      - onos-2
+      - onos-3
+    environment:
+      - ONOS_NODES=onos-1,onos-2,onos-3
+    volumes:
+      - ./install_onos_apps.sh:/opt/install_onos_apps.sh
+    command: /bin/bash /opt/install_onos_apps.sh
+    # command: sleep infinity
+
+  onos-gui:
+    image: haproxytech/haproxy-alpine
+    container_name: onos-gui
+    depends_on:
+      - onos-1
+      - onos-2
+      - onos-3
+    volumes:
+      - ./web-gui-proxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "8181:8181"
+      - "8404:8404"
+    networks:
+      - onos-cluster
+
+networks:
+  onos-cluster:
+    driver: bridge
