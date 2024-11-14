@@ -73,7 +73,6 @@ services:
     volumes:
       - ./install_onos_apps.sh:/opt/install_onos_apps.sh
     command: /bin/bash /opt/install_onos_apps.sh
-    # command: sleep infinity
 
   onos-gui:
     image: haproxytech/haproxy-alpine
@@ -89,6 +88,52 @@ services:
       - "8404:8404"
     networks:
       - onos-cluster
+
+  exporter:
+    image: python:slim
+    container_name: exporter
+    depends_on:
+      - onos-gui
+    restart: always
+    networks:
+      - onos-cluster
+    ports:
+      - "9091:9091"
+    volumes:
+      - ./exporter.py:/app/exporter.py
+    command: >
+        /bin/sh -c " \
+                pip install prometheus_client requests && \
+                python /app/exporter.py \
+        "
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    networks:
+      - onos-cluster
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - onos-cluster
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  grafana-data:
 
 networks:
   onos-cluster:
